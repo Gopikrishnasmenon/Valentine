@@ -1,49 +1,294 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="styles.css">
-    <title>Valentine's Slideshow</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Be My Valentine?</title>
+
+  <style>
+    :root{
+      --bg1: #ff9a9e;
+      --bg2: #fad0c4;
+      --brand: #b30059;
+      --yes-bg: #ff3366;
+      --no-bg:#555;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+
+    body {
+      font-family: 'Comic Sans MS', 'Comic Neue', cursive, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(to bottom, var(--bg1), var(--bg2));
+      overflow: hidden;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 { color: var(--brand); font-size: clamp(1.6rem, 3vw, 2.5rem); margin: 4px 0; }
+    h2 { margin: 6px 0; font-weight: 400; color:#6b1030; }
+
+    .buttons {
+      margin-top: 22px;
+      position: relative;
+      width: min(720px, 95vw);
+      height: 80px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap: 20px;
+      pointer-events: none;
+    }
+
+    button {
+      pointer-events: auto;
+      padding: 12px 26px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 160ms ease, left 220ms ease, top 220ms ease;
+      user-select: none;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    }
+
+    #yes { background-color: var(--yes-bg); color: white; }
+    #no { position: fixed; background-color: var(--no-bg); color: white; left: 50%; top: 50%; transform-origin: center; }
+
+    .heart { position: absolute; color: red; font-size: 20px; animation: floatUp 6s linear infinite; pointer-events: none; }
+    @keyframes floatUp { from { transform: translateY(100vh); opacity: 1; } to { transform: translateY(-10vh); opacity: 0; } }
+
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index: 9999; padding: 24px; }
+    .card { background: linear-gradient(to bottom right,#fff6fb,#ffeef6); border-radius: 14px; padding: 30px; text-align:center; box-shadow: 0 12px 40px rgba(0,0,0,0.25); max-width: 720px; width: 100%; }
+
+    .slideshow { position: fixed; inset: 0; background: #000; display:flex; align-items:center; justify-content:center; z-index: 9998; }
+    .slideshow img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+
+    @media (max-width:520px){ .buttons { height: 110px; } }
+  </style>
 </head>
 <body>
-    <div class="slideshow-container">
+  <h1>Hey <span id="name">My Love</span> 💕</h1>
+  <h1>Will you be my Valentine? 💘</h1>
+  <div class="buttons" id="buttons">
+    <button id="yes" aria-label="Yes, I will be your Valentine" role="button">Yes 💖</button>
+    <button id="no" aria-label="No, I will not" role="button">No 😜</button>
+  </div>
 
-        <div class="mySlides fade">
-            <img src="photo1.jpg" style="width:100%">
-        </div>
+  <audio id="music" loop preload="auto">
+    <source src="./valentinemusic.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
 
-        <div class="mySlides fade">
-            <img src="photo2.jpg" style="width:100%">
-        </div>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const DEFAULT_NAME = "Your Girl's Name";
+      const OVERLAY_DISPLAY_MS = 15000; // 15s
+      const SLIDE_DURATION_MS = 3000;   // 3s per image
+      const SLIDES_PROBE_LIMIT = 30;
 
-        <div class="mySlides fade">
-            <img src="photo3.jpg" style="width:100%">
-        </div>
+      // Elements & state
+      const nameEl = document.getElementById('name');
+      const buttonsEl = document.getElementById('buttons');
+      const yesBtn = document.getElementById('yes');
+      const noBtn = document.getElementById('no');
+      const music = document.getElementById('music');
 
-        <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
-        <a class="next" onclick="plusSlides(1)">&#10095;</a>
-    </div>
+      // Heart animation control
+      let heartInterval = null;
+      let heartCount = 0;
 
-    <script>
-        let slideIndex = 0;
-        showSlides();
+      // get query param for name
+      function queryParam(name){ try { const params = new URLSearchParams(location.search); return params.get(name); } catch(e) { return null; } }
+      const herName = (queryParam('name') || DEFAULT_NAME);
+      if (nameEl) nameEl.innerText = herName;
 
-        function showSlides() {
-            let i;
-            let slides = document.getElementsByClassName("mySlides");
-            for (i = 0; i < slides.length; i++) {
-                slides[i].style.display = "none";
+      const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function createHeart(){
+        if (prefersReducedMotion) return;
+        if (heartCount >= 25) return;
+        const heart = document.createElement('div');
+        heart.className = 'heart';
+        heart.innerText = '❤️';
+        heart.style.left = Math.random() * 100 + 'vw';
+        heart.style.fontSize = (Math.random() * 26 + 12) + 'px';
+        heart.style.animationDuration = (Math.random() * 4 + 4) + 's';
+        document.body.appendChild(heart);
+        heartCount++;
+        setTimeout(() => { heart.remove(); heartCount--; }, 9000);
+      }
+      function startHearts(){ if (!heartInterval) heartInterval = setInterval(createHeart, 350); }
+      function stopHearts(){ if (heartInterval) { clearInterval(heartInterval); heartInterval = null; } }
+
+      // initial start
+      startHearts();
+
+      // Overlay creation
+      function showCelebrationOverlay() {
+        const overlay = document.createElement('div');
+        overlay.className = 'overlay';
+        overlay.setAttribute('role','dialog');
+        overlay.setAttribute('aria-modal','true');
+        overlay.innerHTML = `<div class="card"><h1 style="font-size:2.2rem">YAYYYYY 💕🥰</h1><h2>You just made me the happiest person ever 💘</h2><h2>Happy Valentine’s Day ❤️</h2><p style="margin-top:18px;font-size:0.95rem;color:#6b1030">Thanks for viewing the slideshow — music will continue.</p><div style="margin-top:20px;"><button id="closeOverlay" style="padding:10px 18px;border-radius:8px;background:#b30059;color:#fff;border:none;cursor:pointer">Close</button></div></div>`;
+        document.body.appendChild(overlay);
+        const closeBtn = overlay.querySelector('#closeOverlay');
+        if (closeBtn) closeBtn.addEventListener('click', () => overlay.remove());
+        return overlay;
+      }
+
+      // Image discovery: manifest.json preferred, otherwise probe photo1..photoN (jpg/png/webp/gif)
+      async function gatherSlideshowImages(){
+        const basePath = './valentinephoto/';
+        try {
+          const m = await fetch(basePath + 'manifest.json', { cache: 'no-store' });
+          if (m.ok) {
+            const names = await m.json();
+            if (Array.isArray(names) && names.length) return names.map(n => basePath + n);
+          }
+        } catch(e) { /* ignore */ }
+
+        const candidates = [];
+        const exts = ['.jpg','.jpeg','.png','.webp','.gif'];
+        for (let i = 1; i <= SLIDES_PROBE_LIMIT; i++) for (const ext of exts) candidates.push(`photo${i}${ext}`);
+
+        const found = [];
+        for (const fname of candidates) {
+          const url = basePath + fname;
+          try {
+            const resp = await fetch(url, { method: 'GET', cache: 'no-store' });
+            if (resp.ok) {
+              const ct = resp.headers.get('content-type') || '';
+              if (ct.startsWith('image/')) found.push(url);
             }
-            slideIndex++;
-            if (slideIndex > slides.length) {slideIndex = 1}
-            slides[slideIndex-1].style.display = "block";
-            setTimeout(showSlides, 2000); // Change image every 2 seconds
+          } catch(e){}
+          if (found.length >= 200) break;
+        }
+        return found;
+      }
+
+      // Run slideshow exactly once (single pass), then show overlay for 15s, then reset.
+      async function runSlideshowOnceThenReset(imageUrls) {
+        if (!imageUrls || imageUrls.length === 0) return;
+
+        // hide controls while slideshow runs
+        if (buttonsEl) buttonsEl.style.display = 'none';
+
+        // create slideshow container
+        const slideDiv = document.createElement('div');
+        slideDiv.className = 'slideshow';
+        slideDiv.innerHTML = `<img alt="Valentine slideshow" src="${imageUrls[0]}">`;
+        document.body.appendChild(slideDiv);
+        const imgEl = slideDiv.querySelector('img');
+
+        // preload images
+        for (const src of imageUrls) { const im = new Image(); im.src = src; }
+
+        // show each image once
+        for (let i = 0; i < imageUrls.length; i++) {
+          if (!imgEl) break;
+          imgEl.src = imageUrls[i];
+          await new Promise(resolve => setTimeout(resolve, SLIDE_DURATION_MS));
         }
 
-        function plusSlides(n) {
-            showSlides(slideIndex += n);
+        // show overlay for 15s
+        const overlay = showCelebrationOverlay();
+        await new Promise(resolve => setTimeout(resolve, OVERLAY_DISPLAY_MS));
+        if (overlay && overlay.parentNode) overlay.remove();
+
+        // remove slideshow and reset program
+        if (slideDiv && slideDiv.parentNode) slideDiv.remove();
+
+        resetProgram();
+      }
+
+      // Reset to initial state: show buttons, restart hearts, reset no button scale/position
+      function resetProgram() {
+        if (buttonsEl) buttonsEl.style.display = 'flex';
+        // restart hearts
+        startHearts();
+        // reset no button scale & position
+        noScale = 1;
+        if (noBtn) {
+          noBtn.style.transform = '';
+          moveNoToRandom();
         }
-    </script>
+      }
+
+      // sayYes handler
+      async function sayYes(){
+        try {
+          if (music && music.play) {
+            const p = music.play();
+            if (p && typeof p.catch === 'function') p.catch(err => console.warn('Music playback prevented:', err));
+          }
+        } catch(e) { console.warn('play() failed', e); }
+
+        // stop hearts while slideshow runs
+        stopHearts();
+
+        try {
+          const images = await gatherSlideshowImages();
+          if (images && images.length) {
+            await runSlideshowOnceThenReset(images);
+          } else {
+            // no images: show overlay immediately, then reset
+            const info = showCelebrationOverlay();
+            await new Promise(resolve => setTimeout(resolve, OVERLAY_DISPLAY_MS));
+            if (info && info.parentNode) info.remove();
+            resetProgram();
+          }
+        } catch(e) {
+          console.error('Slideshow error', e);
+          const info = showCelebrationOverlay();
+          await new Promise(resolve => setTimeout(resolve, OVERLAY_DISPLAY_MS));
+          if (info && info.parentNode) info.remove();
+          resetProgram();
+        }
+      }
+
+      // NO button dodge logic (keeps same behaviour)
+      let noScale = 1; const MIN_SCALE = 0.6; const SCALE_STEP = 0.08;
+      function moveNoToRandom(){ if(!noBtn) return; const padding=20; const btnW=noBtn.offsetWidth||80; const btnH=noBtn.offsetHeight||40; const vw=Math.max(document.documentElement.clientWidth, window.innerWidth||0); const vh=Math.max(document.documentElement.clientHeight, window.innerHeight||0); const maxLeft=Math.max(vw-btnW-padding,padding); const maxTop=Math.max(vh-btnH-padding,padding); const x=(maxLeft===padding)?padding:Math.floor(Math.random()*(maxLeft-padding+1))+padding; const y=(maxTop===padding)?padding:Math.floor(Math.random()*(maxTop-padding+1))+padding; noBtn.style.left=x+'px'; noBtn.style.top=y+'px'; }
+      function dodgeNo(){ if(!noBtn) return; noScale=Math.max(MIN_SCALE,noScale-SCALE_STEP); noBtn.style.transform=`scale(${noScale})`; if (noScale<=0.75) noBtn.innerText='Just say YES 😭'; moveNoToRandom(); }
+      let lastDodge = 0; function maybeDodge(){ const now = performance.now(); if (now-lastDodge < 120) return; lastDodge = now; dodgeNo(); }
+
+      if (noBtn) {
+        noBtn.addEventListener('pointerenter', maybeDodge);
+        noBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); maybeDodge(); });
+        noBtn.addEventListener('click', (e)=>{ maybeDodge(); });
+      }
+      if (yesBtn) yesBtn.addEventListener('click', sayYes);
+
+      // init no position and keep it inside viewport on resize
+      requestAnimationFrame(()=>{ moveNoToRandom(); });
+      window.addEventListener('resize', ()=> {
+        if (!noBtn) return;
+        const padding = 12;
+        const btnW = noBtn.offsetWidth || 80;
+        const btnH = noBtn.offsetHeight || 40;
+        const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+        const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+        const maxLeft = Math.max(vw - btnW - padding, padding);
+        const maxTop = Math.max(vh - btnH - padding, padding);
+        const rect = noBtn.getBoundingClientRect();
+        let left = rect.left;
+        let top = rect.top;
+        let changed = false;
+        if (left > maxLeft) { left = maxLeft; changed = true; }
+        if (top > maxTop) { top = maxTop; changed = true; }
+        if (left < padding) { left = padding; changed = true; }
+        if (top < padding) { top = padding; changed = true; }
+        if (changed) { noBtn.style.left = left + 'px'; noBtn.style.top = top + 'px'; }
+      });
+
+    });
+  </script>
 </body>
 </html>
