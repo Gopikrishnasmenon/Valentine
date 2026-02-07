@@ -59,210 +59,54 @@
       box-shadow: 0 6px 18px rgba(0,0,0,0.12);
     }
 
-    #yes {
-      background-color: var(--yes-bg);
-      color: white;
-    }
+    #yes { background-color: var(--yes-bg); color: white; }
+    #no { position: fixed; background-color: var(--no-bg); color: white; left: 50%; top: 50%; transform-origin: center; }
 
-    #no {
-      position: fixed;
-      background-color: var(--no-bg);
-      color: white;
-      left: 50%;
-      top: 50%;
-      transform-origin: center;
-    }
+    .heart { position: absolute; color: red; font-size: 20px; animation: floatUp 6s linear infinite; pointer-events: none; }
+    @keyframes floatUp { from { transform: translateY(100vh); opacity: 1; } to { transform: translateY(-10vh); opacity: 0; } }
 
-    .heart {
-      position: absolute;
-      color: red;
-      font-size: 20px;
-      animation: floatUp 6s linear infinite;
-      pointer-events: none;
-    }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index: 9999; padding: 24px; }
+    .card { background: linear-gradient(to bottom right,#fff6fb,#ffeef6); border-radius: 14px; padding: 30px; text-align:center; box-shadow: 0 12px 40px rgba(0,0,0,0.25); max-width: 720px; width: 100%; }
 
-    @keyframes floatUp {
-      from { transform: translateY(100vh); opacity: 1; }
-      to { transform: translateY(-10vh); opacity: 0; }
-    }
+    .slideshow { position: fixed; inset: 0; background: #000; display:flex; align-items:center; justify-content:center; z-index: 9998; }
+    .slideshow img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+    .slideshow .caption { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.95); font-size: 1rem; background: rgba(0,0,0,0.35); padding: 8px 12px; border-radius: 8px; }
 
-    .overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      z-index: 9999;
-      padding: 24px;
-    }
-    .card {
-      background: linear-gradient(to bottom right,#fff6fb,#ffeef6);
-      border-radius: 14px;
-      padding: 30px;
-      text-align:center;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
-      max-width: 720px;
-      width: 100%;
-    }
-
-    @media (max-width:520px){
-      .buttons { height: 110px; }
-    }
+    @media (max-width:520px){ .buttons { height: 110px; } }
   </style>
 </head>
-
 <body>
   <h1>Hey <span id="name">My Love</span> 💕</h1>
   <h1>Will you be my Valentine? 💘</h1>
-
   <div class="buttons" id="buttons">
     <button id="yes" aria-label="Yes, I will be your Valentine" role="button">Yes 💖</button>
     <button id="no" aria-label="No, I will not" role="button">No 😜</button>
   </div>
 
-  <!-- Music kept in DOM so playback can continue while overlay is present -->
   <audio id="music" loop preload="auto">
     <source src="./valentinemusic.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
   </audio>
 
   <script>
-    // CONFIG
     const DEFAULT_NAME = "Your Girl's Name";
-    const MAX_HEARTS = 25;
-    const MIN_SCALE = 0.6;
-    const SCALE_STEP = 0.08;
-
-    function queryParam(name) {
-      try { const params = new URLSearchParams(location.search); return params.get(name); } catch (e) { return null; }
-    }
-
-    const herName = (queryParam('name') || DEFAULT_NAME);
-    document.getElementById("name").innerText = herName;
-
-    const yesBtn = document.getElementById("yes");
-    const noBtn = document.getElementById("no");
-    const music = document.getElementById("music");
-    let noScale = 1;
-    let heartCount = 0;
-
-    // Move the No button to a random visible location, strictly clamped to viewport bounds.
-    function moveNoToRandom() {
-      const padding = 20;
-      const btnW = noBtn.offsetWidth || 80;
-      const btnH = noBtn.offsetHeight || 40;
-      const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
-      const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-
-      const maxLeft = Math.max(vw - btnW - padding, padding);
-      const maxTop = Math.max(vh - btnH - padding, padding);
-
-      const x = (maxLeft === padding) ? padding : Math.floor(Math.random() * (maxLeft - padding + 1)) + padding;
-      const y = (maxTop === padding) ? padding : Math.floor(Math.random() * (maxTop - padding + 1)) + padding;
-
-      noBtn.style.left = x + "px";
-      noBtn.style.top = y + "px";
-    }
-
-    function dodgeNo() {
-      noScale = Math.max(MIN_SCALE, noScale - SCALE_STEP);
-      noBtn.style.transform = `scale(${noScale})`;
-      if (noScale <= 0.75) noBtn.innerText = "Just say YES 😭";
-      moveNoToRandom();
-    }
-
-    let lastDodge = 0;
-    function maybeDodge() {
-      const now = performance.now();
-      if (now - lastDodge < 120) return;
-      lastDodge = now;
-      dodgeNo();
-    }
-
-    // Events
-    noBtn.addEventListener('pointerenter', maybeDodge);
-    noBtn.addEventListener('touchstart', (e) => { e.preventDefault(); maybeDodge(); });
-    noBtn.addEventListener('click', (e) => { maybeDodge(); });
-
-    yesBtn.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sayYes(); }
-    });
-    noBtn.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); maybeDodge(); }
-    });
-
-    // Hearts
+    const OVERLAY_DISPLAY_MS = 15000; const SLIDE_DURATION_MS = 3000; const SLIDES_PROBE_LIMIT = 30;
+    function queryParam(name) { try { const params = new URLSearchParams(location.search); return params.get(name); } catch (e) { return null; } }
+    const herName = (queryParam('name') || DEFAULT_NAME); document.getElementById("name").innerText = herName;
+    const yesBtn = document.getElementById("yes"); const noBtn = document.getElementById("no"); const music = document.getElementById("music"); let heartInterval = null; let heartCount = 0;
     const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    function createHeart() {
-      if (prefersReducedMotion) return;
-      if (heartCount >= MAX_HEARTS) return;
-      const heart = document.createElement("div");
-      heart.className = "heart";
-      heart.innerText = "❤️";
-      heart.style.left = Math.random() * 100 + "vw";
-      heart.style.fontSize = (Math.random() * 26 + 12) + "px";
-      heart.style.animationDuration = (Math.random() * 4 + 4) + "s";
-      document.body.appendChild(heart);
-      heartCount++;
-      setTimeout(() => { heart.remove(); heartCount--; }, 9000);
-    }
-    const heartInterval = setInterval(createHeart, 350);
-
-    // Yes click: play music + overlay
-    function sayYes() {
-      const playPromise = music.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => console.warn("Music playback prevented:", err));
-      }
-      clearInterval(heartInterval);
-
-      const overlay = document.createElement('div');
-      overlay.className = 'overlay';
-      overlay.setAttribute('role', 'dialog');
-      overlay.setAttribute('aria-modal', 'true');
-      overlay.innerHTML = `
-        <div class="card">
-          <h1 style="font-size:2.2rem">YAYYYYY 💕🥰</h1>
-          <h2>You just made me the happiest person ever 💘</h2>
-          <h2>Happy Valentine’s Day ❤️</h2>
-          <p style="margin-top:18px;font-size:0.95rem;color:#6b1030">Music should be playing — allow playback if your browser blocked it.</p>
-          <div style="margin-top:20px;"><button id="closeOverlay" style="padding:10px 18px;border-radius:8px;background:#b30059;color:#fff;border:none;cursor:pointer">Close</button></div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-      const closeBtn = document.getElementById('closeOverlay');
-      closeBtn.focus();
-      closeBtn.addEventListener('click', () => { overlay.remove(); });
-    }
-    yesBtn.addEventListener('click', sayYes);
-
-    // initial NO position
-    requestAnimationFrame(() => { moveNoToRandom(); });
-
-    // Keep NO inside viewport after resize
-    window.addEventListener('resize', () => {
-      const padding = 12;
-      const btnW = noBtn.offsetWidth || 80;
-      const btnH = noBtn.offsetHeight || 40;
-      const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
-      const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-      const maxLeft = Math.max(vw - btnW - padding, padding);
-      const maxTop = Math.max(vh - btnH - padding, padding);
-
-      const rect = noBtn.getBoundingClientRect();
-      let left = rect.left;
-      let top = rect.top;
-
-      let changed = false;
-      if (left > maxLeft) { left = maxLeft; changed = true; }
-      if (top > maxTop) { top = maxTop; changed = true; }
-      if (left < padding) { left = padding; changed = true; }
-      if (top < padding) { top = padding; changed = true; }
-      if (changed) {
-        noBtn.style.left = left + "px";
-        noBtn.style.top = top + "px";
-      }
-    });
+    function createHeart() { if (prefersReducedMotion) return; if (heartCount >= 25) return; const heart = document.createElement("div"); heart.className = "heart"; heart.innerText = "❤️"; heart.style.left = Math.random() * 100 + "vw"; heart.style.fontSize = (Math.random() * 26 + 12) + "px"; heart.style.animationDuration = (Math.random() * 4 + 4) + "s"; document.body.appendChild(heart); heartCount++; setTimeout(() => { heart.remove(); heartCount--; }, 9000); }
+    heartInterval = setInterval(createHeart, 350);
+    function showCelebrationOverlay() { const overlay = document.createElement('div'); overlay.className = 'overlay'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.innerHTML = `<div class="card"><h1 style="font-size:2.2rem">YAYYYYY 💕🥰</h1><h2>You just made me the happiest person ever 💘</h2><h2>Happy Valentine’s Day ❤️</h2><p style="margin-top:18px;font-size:0.95rem;color:#6b1030">Music should be playing — allow playback if your browser blocked it.</p><div style="margin-top:20px;"><button id="closeOverlay" style="padding:10px 18px;border-radius:8px;background:#b30059;color:#fff;border:none;cursor:pointer">Close</button></div></div>`; document.body.appendChild(overlay); const closeBtn = document.getElementById('closeOverlay'); closeBtn.focus(); closeBtn.addEventListener('click', () => { overlay.remove(); }); return overlay; }
+    async function gatherSlideshowImages() { const basePath = './valentinephoto/'; try { const mResp = await fetch(basePath + 'manifest.json', {cache:'no-store'}); if (mResp.ok) { const names = await mResp.json(); if (Array.isArray(names) && names.length) { return names.map(n => basePath + n); } } } catch (e) {}
+      const candidates = []; const exts = ['.jpg','.jpeg','.png','.webp','.gif']; for (let i = 1; i <= SLIDES_PROBE_LIMIT; i++) { for (const ext of exts) { candidates.push(`photo${i}${ext}`); } }
+      const found = []; for (const fname of candidates) { const url = basePath + fname; try { const resp = await fetch(url, { method: 'GET', cache: 'no-store' }); if (resp.ok) { const ct = resp.headers.get('content-type') || ''; if (ct.startsWith('image/')) { found.push(url); } } } catch (e) {} if (found.length >= 50) break; } return found; }
+    function startSlideshow(imageUrls) { if (!imageUrls || imageUrls.length === 0) return; if (document.querySelector('.slideshow')) return; const slideDiv = document.createElement('div'); slideDiv.className = 'slideshow'; slideDiv.innerHTML = `<img alt="Valentine slideshow" src="${imageUrls[0]}"><div class="caption">1 / ${imageUrls.length}</div>`; document.body.appendChild(slideDiv); const imgEl = slideDiv.querySelector('img'); const caption = slideDiv.querySelector('.caption'); let idx = 0; const preloaded = []; for (const src of imageUrls) { const im = new Image(); im.src = src; preloaded.push(im); } const interval = setInterval(() => { idx = (idx + 1) % imageUrls.length; imgEl.src = imageUrls[idx]; if (caption) caption.textContent = `${idx+1} / ${imageUrls.length}`; }, SLIDE_DURATION_MS); slideDiv.addEventListener('click', () => { clearInterval(interval); slideDiv.remove(); }); window.addEventListener('keydown', function escHandler(e) { if (e.key === 'Escape') { clearInterval(interval); slideDiv.remove(); window.removeEventListener('keydown', escHandler); } }); }
+    async function sayYes() { const playPromise = music.play(); if (playPromise !== undefined) { playPromise.catch((err) => console.warn("Music playback prevented:", err)); } if (heartInterval) { clearInterval(heartInterval); heartInterval = null; } const overlay = showCelebrationOverlay(); setTimeout(async () => { if (overlay && overlay.parentNode) overlay.remove(); const images = await gatherSlideshowImages(); if (images && images.length) { startSlideshow(images); } else { const info = document.createElement('div'); info.className = 'overlay'; info.style.background = 'rgba(0,0,0,0.6)'; info.innerHTML = `<div class="card"><h2 style="color:#6b1030">No photos found in /valentinephoto</h2><p style="color:#6b1030">Add a manifest.json or photo files named photo1.jpg, photo2.jpg, ...</p><div style="margin-top:12px"><button id="closeNoPhotos" style="padding:8px 12px;background:#b30059;color:#fff;border:none;border-radius:8px;cursor:pointer">Close</button></div></div>`; document.body.appendChild(info); document.getElementById('closeNoPhotos').addEventListener('click', () => info.remove()); } }, OVERLAY_DISPLAY_MS); }
+    let noScale = 1; const MIN_SCALE = 0.6; const SCALE_STEP = 0.08; function moveNoToRandom() { const padding = 20; const btnW = noBtn.offsetWidth || 80; const btnH = noBtn.offsetHeight || 40; const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0); const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0); const maxLeft = Math.max(vw - btnW - padding, padding); const maxTop = Math.max(vh - btnH - padding, padding); const x = (maxLeft === padding) ? padding : Math.floor(Math.random() * (maxLeft - padding + 1)) + padding; const y = (maxTop === padding) ? padding : Math.floor(Math.random() * (maxTop - padding + 1)) + padding; noBtn.style.left = x + "px"; noBtn.style.top = y + "px"; }
+    function dodgeNo() { noScale = Math.max(MIN_SCALE, noScale - SCALE_STEP); noBtn.style.transform = `scale(${noScale})`; if (noScale <= 0.75) noBtn.innerText = "Just say YES 😭"; moveNoToRandom(); }
+    let lastDodge = 0; function maybeDodge() { const now = performance.now(); if (now - lastDodge < 120) return; lastDodge = now; dodgeNo(); }
+    noBtn.addEventListener('pointerenter', maybeDodge); noBtn.addEventListener('touchstart', (e) => { e.preventDefault(); maybeDodge(); }); noBtn.addEventListener('click', (e) => { maybeDodge(); }); yesBtn.addEventListener('click', sayYes); requestAnimationFrame(() => { moveNoToRandom(); }); window.addEventListener('resize', () => { const padding = 12; const btnW = noBtn.offsetWidth || 80; const btnH = noBtn.offsetHeight || 40; const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0); const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0); const maxLeft = Math.max(vw - btnW - padding, padding); const maxTop = Math.max(vh - btnH - padding, padding); const rect = noBtn.getBoundingClientRect(); let left = rect.left; let top = rect.top; let changed = false; if (left > maxLeft) { left = maxLeft; changed = true; } if (top > maxTop) { top = maxTop; changed = true; } if (left < padding) { left = padding; changed = true; } if (top < padding) { top = padding; changed = true; } if (changed) { noBtn.style.left = left + "px"; noBtn.style.top = top + "px"; } });
   </script>
 </body>
 </html>
